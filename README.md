@@ -1,58 +1,73 @@
-# my-code-reviewer
+# pr-reviewer-agent
 
-Welcome to your new [Mastra](https://mastra.ai) project! We're excited to see what you build.
+An AI code reviewer that runs a team of specialist agents over your code and hands back a single, reconciled verdict — instead of a pile of overlapping opinions.
 
-This starter provides you with a general-purpose Mastra agent that can research current information, manage multi-step tasks, work with local files, run approved shell commands, and create recurring schedules.
+A **Supervisor** agent receives the code or diff, delegates it to independent specialist reviewers, and merges their findings into one review with a clear approve / request-changes decision.
 
-## Features
+## The review team
 
-- A project-level `workspace/` for files and command execution
-- Approval gates for file changes, deletions, and shell commands
-- Conversation memory, generated thread titles, and task tracking
-- Built-in web search and direct web page fetching
-- Recurring schedules that persist across restarts
-- Local libSQL storage and DuckDB observability, with optional Turso storage
-- A bundled Mastra skill that helps coding agents use current Mastra APIs
+| Agent | Reviews for |
+|-------|-------------|
+| **Supervisor** | Orchestration only — delegates, reconciles conflicts, and produces the final verdict. Does not review code itself. |
+| **Security Reviewer** | Injection, input validation, authn/authz, hardcoded secrets, sensitive-data exposure, unsafe deserialization, and untrusted source → dangerous sink flows. |
+| **Style Reviewer** | Naming, formatting, readability, nesting/function length, and language idioms. |
 
-## Get started
+Specialists run **independently** — they don't see each other's output. When findings conflict or overlap, the Supervisor applies a fixed precedence:
 
-Set your `ANTHROPIC_API_KEY` in `.env` or in your environment, then run:
+```
+Security  >  Correctness / Tests  >  Style
+```
+
+So a hardcoded live key or SQL injection always outranks a naming nitpick in the final call.
+
+## What you get back
+
+Every review comes back in the same shape:
+
+- **Verdict** — `approve` / `approve-with-comments` / `request-changes`
+- **Findings** — grouped by severity (blocking, recommended, nitpick), each tagged with which specialist raised it and the exact line or symbol
+- **Summary** — 1–2 sentences on the overall state of the code
+
+See [`workspace/supervisor/code-review.md`](src/mastra/public/workspace/supervisor/code-review.md) for a full worked example (a broken Express `/user` route).
+
+## Running it
+
+Set your Anthropic key, then start the dev server:
 
 ```shell
+export ANTHROPIC_API_KEY=sk-...   # or put it in .env
 pnpm run dev
 ```
 
-Open [http://localhost:4111](http://localhost:4111) in your browser to access [Mastra Studio](https://mastra.ai/docs/studio/overview).
+Open [http://localhost:4111](http://localhost:4111), select the **Supervisor Agent**, and paste in code or a diff:
 
-Select **Agent** in Mastra Studio and try one of these prompts:
+```
+Review this route:
 
-- `Get the weather forecast for Austin this weekend.`
-- `Create a landing page for a Japanese sakura festival.`
-- `Check the SPCX stock price now, then check it every minute.`
+app.get('/user', function(req, res) {
+  var q = "SELECT * FROM users WHERE id = " + req.query.id
+  db.query(q, function(e, r) { ... })
+})
+```
 
-The agent asks for approval before it changes files or runs commands. When it creates a schedule, it returns an ID that you can use to pause the schedule.
+The Supervisor fans the code out to the Security and Style reviewers and returns one consolidated review.
 
-## Workspace safety
+## Adding a specialist
 
-The local filesystem tools stay inside the project-level `workspace/` directory. Shell commands start in that directory, but `LocalSandbox` does not provide operating-system isolation by default. Review command approvals carefully, and do not expose this template through an unauthenticated public server.
+The team is meant to grow. To add, say, a Correctness or Test-coverage reviewer:
 
-## Storage
+1. Create the agent in `src/mastra/agents/sub/` (copy `style-reviewer.ts` as a template and rewrite its prompt to define one tight scope).
+2. Export it from `src/mastra/agents/sub/index.ts`.
+3. Register it in the Supervisor's `agents` map in `src/mastra/agents/agent.ts`, and list it in the Supervisor's delegation instructions.
 
-The default `file:./mastra.db` database stores agent memory, tasks, and schedules locally. To use Turso, set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` in `.env`.
+Keep each specialist in a single lane — the Supervisor relies on non-overlapping scopes to reconcile cleanly.
 
-Recurring schedules continue to use model tokens until you pause them. Ask the agent to pause a schedule with the ID returned by `start_schedule`.
+## Configuration
 
-## Making it yours
+- **Models** — each agent runs on `anthropic/claude-sonnet-5`; observational memory uses `anthropic/claude-haiku-4-5`. Change these per agent in their definition files.
+- **Storage** — agent memory and threads live in a local libSQL database (`file:./mastra.db`). For hosted storage, set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`.
+- **Observability** — traces go to DuckDB and the Mastra platform, with a `SensitiveDataFilter` scrubbing span output. Configured in `src/mastra/index.ts`.
 
-- Edit `src/mastra/agents/agent.ts` to change the model, instructions, memory, workspace, or approval policy.
-- Edit `src/mastra/tools/` to customize scheduling.
-- Edit `src/mastra/index.ts` to change storage and observability.
-- Add files or reusable skills under `workspace/` for the agent to use.
+## Safety note
 
-## Learn more
-
-To learn more about Mastra, visit our [documentation](https://mastra.ai/docs/). If you're new to AI agents, check out our [course](https://mastra.ai/learn) and [YouTube videos](https://youtube.com/@mastra-ai). You can also join our [Discord](https://discord.gg/BTYqqHKUrf) community to get help and share your projects.
-
-## Deploy to the Mastra platform
-
-The [Mastra platform](https://projects.mastra.ai) provides two products for deploying and managing AI applications built with the Mastra framework. Learn more in the [Mastra platform documentation](https://mastra.ai/docs/mastra-platform/overview).
+The Supervisor's workspace (`workspace/supervisor/`) is sandboxed to that directory for file operations — writes require a prior read and deletes require approval — but `LocalSandbox` does **not** provide OS-level isolation for shell commands. Review command approvals carefully and don't expose this behind an unauthenticated public endpoint.
