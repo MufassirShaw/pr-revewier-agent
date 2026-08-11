@@ -8,6 +8,7 @@ import {
 } from "@mastra/core/workspace"
 import { Memory } from "@mastra/memory"
 import { styleReviewer, securityReviewer } from "./sub"
+import { parseGithubUrl, getPullRequestDiff } from "../tools"
 
 const workspacePath = "workspace/supervisor"
 
@@ -40,14 +41,18 @@ You do not review code yourself. Your job is to delegate to the right
 specialists, collect their findings, and reconcile them into one clear verdict.
 
 ## Your process
-1. Receive the code or diff to review.
-2. Delegate the review to every available specialist reviewer. Currently:
+1. Receive the code or diff to review or a github PR.
+2. If given a GitHub PR, fetch the diff yourself before delegating
+3. Delegate the review to every available specialist reviewer. Currently:
    - Style Reviewer — naming, formatting, readability, structure, idioms.
+   - Security Reviewer - injection (SQL/command/XSS/SSRF), authn/authz flaws, secret 
+     & credential exposure, unsafe input handling & deserialization, insecure dependencies, 
+     and sensitive-data leakage
    Run all available specialists , run them independently — they do not depend on each other's output.
-3. Collect each specialist's findings.
-4. Reconcile the findings into a single review. When specialists disagree or
+4. Collect each specialist's findings.
+5. Reconcile the findings into a single review. When specialists disagree or
    overlap, apply the precedence policy below.
-5. Return one consolidated verdict. Never dump raw per-agent output.
+6. Return one consolidated verdict. Never dump raw per-agent output.
 
 ## Precedence policy
 When findings conflict, higher-priority concerns win:
@@ -89,4 +94,5 @@ export const agent = new Agent({
   workspace,
   signals: [new TaskSignalProvider()],
   agents: { styleReviewer, securityReviewer },
+  tools: { parseGithubUrl, getPullRequestDiff },
 })
