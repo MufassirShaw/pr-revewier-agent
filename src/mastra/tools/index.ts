@@ -1,1 +1,5 @@
-export { parseGithubUrl, getPullRequestDiff } from "./github"
+export {
+  parseGithubUrl,
+  getPullRequestDiff,
+  postPullRequestReview,
+} from "./github"

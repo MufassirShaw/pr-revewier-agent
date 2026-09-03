@@ -51,3 +51,63 @@ export const getPullRequestDiff = createTool({
     return { diff: await response.text() }
   },
 })
+
+export const postPullRequestReview = createTool({
+  id: "post-pull-request-review",
+  description:
+    "Publish a single GitHub Pull Request review with inline comments anchored to specific files and lines. Each line comment must target a line that appears in the PR diff.",
+  inputSchema: z.object({
+    owner: z.string().describe("Owner of the repository"),
+    repo: z.string().describe("Name of the repo"),
+    prNumber: z.number().describe("Number of the pull request"),
+    event: z
+      .enum(["COMMENT", "REQUEST_CHANGES", "APPROVE"])
+      .describe(
+        "Review verdict: COMMENT (neutral), REQUEST_CHANGES (blocking), or APPROVE",
+      ),
+    body: z
+      .string()
+      .describe("Overall review summary shown at the top of the review"),
+    comments: z
+      .array(
+        z.object({
+          path: z
+            .string()
+            .describe("File path relative to the repo root, as it appears in the diff"),
+          line: z
+            .number()
+            .describe(
+              "Line number in the file (in the diff's new version) the comment refers to",
+            ),
+          side: z
+            .enum(["LEFT", "RIGHT"])
+            .default("RIGHT")
+            .describe(
+              "RIGHT for the new version of the file, LEFT for the original",
+            ),
+          body: z.string().describe("The comment text for this line"),
+        }),
+      )
+      .default([])
+      .describe("Inline comments to attach to specific lines of the PR"),
+  }),
+  outputSchema: z.object({
+    reviewId: z.number(),
+    state: z.string(),
+    htmlUrl: z.string(),
+  }),
+  execute: async (input) => {
+    const { owner, repo, prNumber, event, body, comments } = input
+    const response = await githubFetch(
+      `/repos/${owner}/${repo}/pulls/${prNumber}/reviews`,
+      "application/vnd.github.v3+json",
+      { method: "POST", body: { event, body, comments } },
+    )
+    const review = await response.json()
+    return {
+      reviewId: review.id,
+      state: review.state,
+      htmlUrl: review.html_url,
+    }
+  },
+})

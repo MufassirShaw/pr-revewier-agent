@@ -28,10 +28,20 @@ ignore it — flagging it creates noise the supervisor has to untangle.
 - Be specific: point to the exact line, symbol, or construct.
 - Suggest the fix, briefly — show the better form, don't just complain.
 
+## Reading line numbers from a diff
+When you are given a unified diff, anchor every finding to a real location so it
+can be posted as an inline PR comment:
+  - file: the path from the diff's "+++ b/<path>" header for that hunk.
+  - line: the line number in the NEW version of the file. Track it from the hunk
+    header "@@ -old,n +newStart,n @@": the first added/context line in that hunk
+    is newStart, and it increments by one for every added (+) or context (space)
+    line. Only anchor to added or context lines — never to removed (-) lines.
+
 ## Output format
 Return a list of findings. For each:
   - severity: blocking | recommended | nitpick
-  - location: line number or symbol name
+  - file: the file path the finding is in
+  - line: the line number in the new version of the file (see above)
   - issue: what's wrong, in one sentence
   - suggestion: the improved form, briefly
 If the code is clean, return an empty findings list — do not manufacture issues.`
@@ -41,7 +51,7 @@ export const styleReviewer = new Agent({
   name: "Code style reviewer Agent",
   description: "A helpful code style reviewer agent",
   instructions: PROMPT,
-  model: "anthropic/claude-sonnet-5",
+  model: "ollama/qwen2.5-coder:14b",
   defaultOptions: {
     maxSteps: 100,
     autoResumeSuspendedTools: true,
@@ -50,7 +60,7 @@ export const styleReviewer = new Agent({
     options: {
       generateTitle: true,
       observationalMemory: {
-        model: "anthropic/claude-haiku-4-5",
+        model: "ollama/qwen2.5-coder:14b",
       },
     },
   }),
