@@ -51,7 +51,7 @@ export const styleReviewer = new Agent({
   name: "Code style reviewer Agent",
   description: "A helpful code style reviewer agent",
   instructions: PROMPT,
-  model: "ollama/qwen2.5-coder:14b",
+  model: "anthropic/claude-sonnet-4-5",
   defaultOptions: {
     maxSteps: 100,
     autoResumeSuspendedTools: true,
@@ -60,7 +60,7 @@ export const styleReviewer = new Agent({
     options: {
       generateTitle: true,
       observationalMemory: {
-        model: "ollama/qwen2.5-coder:14b",
+        model: "anthropic/claude-sonnet-4-5",
       },
     },
   }),

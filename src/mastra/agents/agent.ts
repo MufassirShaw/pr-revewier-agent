@@ -7,6 +7,7 @@ import {
   Workspace,
 } from "@mastra/core/workspace"
 import { Memory } from "@mastra/memory"
+
 import { styleReviewer, securityReviewer, commentPublisher } from "./sub"
 import { parseGithubUrl, getPullRequestDiff } from "../tools"
 
@@ -94,7 +95,7 @@ export const agent = new Agent({
   id: "supervisor-agent",
   name: "Supervisor Agent",
   instructions: PROMPT,
-  model: "ollama/qwen2.5-coder:14b",
+  model: "anthropic/claude-sonnet-4-5",
   defaultOptions: {
     maxSteps: 100,
     autoResumeSuspendedTools: true,
@@ -103,7 +104,7 @@ export const agent = new Agent({
     options: {
       generateTitle: true,
       observationalMemory: {
-        model: "ollama/qwen2.5-coder:14b",
+        model: "anthropic/claude-sonnet-4-5",
       },
     },
   }),

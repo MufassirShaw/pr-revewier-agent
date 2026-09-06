@@ -57,7 +57,7 @@ export const securityReviewer = new Agent({
   name: "Code security reviewer Agent",
   description: "A helpful code security reviewer agent",
   instructions: PROMPT,
-  model: "ollama/qwen2.5-coder:14b",
+  model: "anthropic/claude-sonnet-4-5",
   defaultOptions: {
     maxSteps: 100,
     autoResumeSuspendedTools: true,
@@ -66,7 +66,7 @@ export const securityReviewer = new Agent({
     options: {
       generateTitle: true,
       observationalMemory: {
-        model: "ollama/qwen2.5-coder:14b",
+        model: "anthropic/claude-sonnet-4-5",
       },
     },
   }),
